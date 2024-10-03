@@ -57,6 +57,9 @@ def parse_articles(html_content):
 
 @app.get("/news")
 async def get_news(request: Request):
+    """
+    Get news articles, optionally filtered by category.
+    """
     base_url = "https://playthroneandliberty.com/en-us/news-load-more?page="
     page = 1
     all_articles = []
@@ -105,6 +108,16 @@ async def get_news(request: Request):
 
 @app.get("/server-status")
 async def get_server_status(request: Request):
+    """
+    Retrieve the status of Throne and Liberty servers by region.
+    If no region is specified, returns status for all regions.\n
+    ?region={region}:\n
+        "western-americas"\n
+        "eastern-americas"\n
+        "south-america"\n
+        "europe"\n
+        "japan-oceania"\n
+    """
     region = request.query_params.get("region")
 
     url = "https://www.playthroneandliberty.com/en-us/support/server-status"
@@ -165,6 +178,9 @@ async def get_server_status(request: Request):
 
 @app.get("/health")
 async def health_check(request: Request):
+    """
+    Check the health status of the API and the Throne and Liberty website.
+    """
     api_status = "healthy"
     api_message = "The API is up and running"
 
