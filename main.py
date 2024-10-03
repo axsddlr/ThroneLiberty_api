@@ -1,10 +1,22 @@
+import json
 import logging
+from datetime import datetime
 
 import httpx
-from robyn import Request, Robyn, jsonify
+from robyn import Request, Robyn
 from selectolax.parser import HTMLParser
 
 app = Robyn(__file__)
+
+
+class PrettyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        return json.dumps(obj, indent=2)
+
+
+def pretty_jsonify(data):
+    return json.dumps(data, indent=2, cls=PrettyJSONEncoder)
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -103,14 +115,15 @@ async def get_news(request: Request):
         f"Total articles: {len(all_articles)}, Filtered articles: {len(filtered_articles)}"
     )
 
-    return jsonify(filtered_articles)
+    return pretty_jsonify(filtered_articles)
 
 
 @app.get("/server-status")
 async def get_server_status(request: Request):
     """
     Retrieve the status of Throne and Liberty servers by region.
-    If no region is specified, returns status for all regions.\n
+    If no region is specified, returns status for all regions.
+    Each region's data includes a timestamp of when it was queried.\n
     ?region={region}:\n
         "western-americas"\n
         "eastern-americas"\n
@@ -124,7 +137,7 @@ async def get_server_status(request: Request):
 
     html_content = fetch_page(url)
     if not html_content:
-        return jsonify({"error": "Failed to fetch server status data"}), 500
+        return pretty_jsonify({"error": "Failed to fetch server status data"}), 500
 
     parser = HTMLParser(html_content)
 
@@ -137,7 +150,7 @@ async def get_server_status(request: Request):
     ]
 
     if region and region not in all_regions:
-        return jsonify({"error": "Invalid region"}), 400
+        return pretty_jsonify({"error": "Invalid region"}), 400
 
     result = {}
 
@@ -171,9 +184,12 @@ async def get_server_status(request: Request):
 
             servers.append({"name": name, "status": status})
 
-        result[current_region] = servers
+        result[current_region] = {
+            "servers": servers,
+            "timestamp": datetime.now().isoformat(),
+        }
 
-    return jsonify(result)
+    return pretty_jsonify(result)
 
 
 @app.get("/health")
@@ -201,7 +217,7 @@ async def health_check(request: Request):
         "healthy" if api_status == "healthy" and tl_status == "healthy" else "unhealthy"
     )
 
-    return jsonify(
+    return pretty_jsonify(
         {
             "status": overall_status,
             "api": {"status": api_status, "message": api_message},
