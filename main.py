@@ -103,5 +103,36 @@ async def get_news(request: Request):
     return jsonify(filtered_articles)
 
 
+@app.get("/health")
+async def health_check(request: Request):
+    api_status = "healthy"
+    api_message = "The API is up and running"
+
+    # Check Throne and Liberty website
+    tl_status = "unhealthy"
+    tl_message = "Unable to connect to Throne and Liberty website"
+    try:
+        with httpx.Client(follow_redirects=True) as client:
+            response = client.get("https://playthroneandliberty.com")
+        if response.status_code == 200:
+            tl_status = "healthy"
+            tl_message = "Successfully connected to Throne and Liberty website"
+    except Exception as e:
+        logger.error(f"Error connecting to Throne and Liberty website: {str(e)}")
+
+    # Overall health is healthy only if both API and TL website are healthy
+    overall_status = (
+        "healthy" if api_status == "healthy" and tl_status == "healthy" else "unhealthy"
+    )
+
+    return jsonify(
+        {
+            "status": overall_status,
+            "api": {"status": api_status, "message": api_message},
+            "throne_and_liberty": {"status": tl_status, "message": tl_message},
+        }
+    )
+
+
 if __name__ == "__main__":
     app.start(port=8000)
