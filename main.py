@@ -103,6 +103,66 @@ async def get_news(request: Request):
     return jsonify(filtered_articles)
 
 
+@app.get("/server-status")
+async def get_server_status(request: Request):
+    region = request.query_params.get("region")
+
+    url = "https://www.playthroneandliberty.com/en-us/support/server-status"
+
+    html_content = fetch_page(url)
+    if not html_content:
+        return jsonify({"error": "Failed to fetch server status data"}), 500
+
+    parser = HTMLParser(html_content)
+
+    all_regions = [
+        "western-americas",
+        "eastern-americas",
+        "south-america",
+        "europe",
+        "japan-oceania",
+    ]
+
+    if region and region not in all_regions:
+        return jsonify({"error": "Invalid region"}), 400
+
+    result = {}
+
+    for current_region in all_regions:
+        if region and current_region != region:
+            continue
+
+        region_div = parser.css_first(f'div[data-regionid="{current_region}"]')
+        if not region_div:
+            continue
+
+        servers = []
+        for server_item in region_div.css(
+            "div.ags-ServerStatus-content-serverStatuses-server-item"
+        ):
+            name = server_item.css_first(
+                "span.ags-ServerStatus-content-serverStatuses-server-item-label"
+            ).text()
+            status_svg = server_item.css_first("svg")
+
+            if "24FF00" in status_svg.html:  # Green color
+                status = "Good"
+            elif "FFF500" in status_svg.html:  # Yellow color
+                status = "Busy"
+            elif "FF0000" in status_svg.html:  # Red color
+                status = "Full"
+            elif "00F0FF" in status_svg.html:  # Blue color
+                status = "In-Maintenance"
+            else:
+                status = "Unknown"
+
+            servers.append({"name": name, "status": status})
+
+        result[current_region] = servers
+
+    return jsonify(result)
+
+
 @app.get("/health")
 async def health_check(request: Request):
     api_status = "healthy"
